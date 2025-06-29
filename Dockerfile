@@ -1,4 +1,4 @@
-# שימוש בתמונת בסיס קלה עם Python 3.11 (ניתן לשנות ל-3.10 אם מעדיפים)
+# שימוש בתמונת בסיס קלה עם Python 3.11
 FROM python:3.11-slim
 
 # הגדרת משתני סביבה
@@ -34,8 +34,9 @@ RUN pip install --upgrade pip && \
 # העתקת שאר הקבצים
 COPY . .
 
-# וידוא שקובץ thumbnail.jpg קיים
-RUN test -f thumbnail.jpg || { echo "thumbnail.jpg not found!"; exit 1; }
+# וידוא שקובץ thumbnail.jpg ו-words_to_remove.txt קיימים
+RUN test -f thumbnail.jpg || { echo "thumbnail.jpg not found!"; exit 1; } && \
+    test -f words_to_remove.txt || { echo "words_to_remove.txt not found!"; exit 1; }
 
 # שינוי הרשאות למשתמש appuser
 RUN chown -R appuser:appuser /app
