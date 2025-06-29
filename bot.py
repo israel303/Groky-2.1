@@ -5,6 +5,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from PIL import Image
 import io
 import asyncio
+import re  # הוספת ספריית re לטיפול במילים באנגלית
 
 # הגדרת לוגים
 logging.basicConfig(
@@ -22,6 +23,24 @@ BASE_URL = os.getenv('BASE_URL', 'https://groky.onrender.com')
 # רישום גרסת python-telegram-bot
 logger.info(f"Using python-telegram-bot version {TG_VER}")
 
+# פונקציה חדשה: הסרת מילים באנגלית משם הקובץ
+def remove_english_words(filename: str) -> str:
+    try:
+        # פיצול שם הקובץ לבסיס וסיומת
+        base, ext = os.path.splitext(filename)
+        # הסרת מילים באנגלית (תווים לטיניים a-z, A-Z) תוך שמירה על תווים אחרים
+        cleaned_base = re.sub(r'[a-zA-Z]+', '', base)
+        # הסרת רווחים מיותרים והחלפתם בסימן _ אם נשארו
+        cleaned_base = re.sub(r'\s+', '_', cleaned_base.strip())
+        # אם שם הבסיס ריק לאחר הניקוי, החלף בשם ברירת מחדל
+        if not cleaned_base:
+            cleaned_base = "file"
+        # שילוב הבסיס המנוקה עם הסיומת
+        return f"{cleaned_base}{ext}"
+    except Exception as e:
+        logger.error(f"שגיאה בניקוי שם קובץ: {e}")
+        return filename  # החזרת שם הקובץ המקורי במקרה של שגיאה
+
 # פקודת /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
@@ -35,8 +54,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text(
         'הנה מה שאני עושה:\n'
         '1. שלח לי כל קובץ.\n'
-        '2. אני אוסיף לו את התמונה של אולדטאון בטלגרם.\n'
-        '3. תקבל את הקובץ בחזרה.\n'
+        '2. אני אמחק מילים באנגלית משם הקובץ.\n'
+        '3. אני אוסיף לו את התמונה של אולדטאון בטלגרם.\n'
+        '4. תקבל את הקובץ בחזרה.\n'
         'יש שאלות? תתאפק.'
     )
 
@@ -71,9 +91,12 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if not thumb_io:
             error_message = 'לא הצלחתי להוסיף תמונה, אבל הנה הקובץ שלך.'
 
-        # הוספת "_OldTown" לפני הסיומת
+        # הסרת מילים באנגלית משם הקובץ
         original_filename = document.file_name
-        base, ext = os.path.splitext(original_filename)
+        cleaned_filename = remove_english_words(original_filename)
+        
+        # הוספת "_OldTown" לפני הסיומת
+        base, ext = os.path.splitext(cleaned_filename)
         new_filename = f"{base}_OldTown{ext}"
 
         # שליחת הקובץ
