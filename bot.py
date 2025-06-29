@@ -5,7 +5,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from PIL import Image
 import io
 import asyncio
-import re  # הוספת ספריית re לטיפול במילים באנגלית
+import re  # לטיפול בביטויים רגולריים
 
 # הגדרת לוגים
 logging.basicConfig(
@@ -20,21 +20,39 @@ THUMBNAIL_PATH = 'thumbnail.jpg'
 # כתובת בסיס ל-Webhook
 BASE_URL = os.getenv('BASE_URL', 'https://groky.onrender.com')
 
+# נתיב לקובץ המילים שיוסרו
+WORDS_FILE_PATH = 'words_to_remove.txt'
+
 # רישום גרסת python-telegram-bot
 logger.info(f"Using python-telegram-bot version {TG_VER}")
 
-# פונקציה חדשה: הסרת מילים באנגלית משם הקובץ
+# פונקציה: הסרת מילים מוגדרות מראש משם הקובץ
 def remove_english_words(filename: str) -> str:
     try:
         # פיצול שם הקובץ לבסיס וסיומת
         base, ext = os.path.splitext(filename)
-        # הסרת מילים באנגלית (תווים לטיניים a-z, A-Z) תוך שמירה על תווים אחרים
-        cleaned_base = re.sub(r'[a-zA-Z]+', '', base)
-        # הסרת רווחים מיותרים והחלפתם בסימן _ אם נשארו
-        cleaned_base = re.sub(r'\s+', '_', cleaned_base.strip())
+        
+        # קריאת המילים מהקובץ
+        if not os.path.exists(WORDS_FILE_PATH):
+            logger.error(f"קובץ {WORDS_FILE_PATH} לא נמצא, מחזיר שם קובץ מקורי")
+            return filename
+        
+        with open(WORDS_FILE_PATH, 'r', encoding='utf-8') as f:
+            words_to_remove = [line.strip() for line in f if line.strip()]
+        
+        # הסרת המילים המוגדרות (גם אם הן חלק ממילה גדולה יותר)
+        cleaned_base = base
+        for word in words_to_remove:
+            pattern = re.escape(word)  # ביטוי רגולרי למילה ללא גבולות
+            cleaned_base = re.sub(pattern, '', cleaned_base, flags=re.IGNORECASE)
+        
+        # הסרת רווחים או _ מיותרים והחלפתם בסימן _ אם נשארו
+        cleaned_base = re.sub(r'[_|\s]+', '_', cleaned_base.strip('_'))
+        
         # אם שם הבסיס ריק לאחר הניקוי, החלף בשם ברירת מחדל
         if not cleaned_base:
             cleaned_base = "file"
+        
         # שילוב הבסיס המנוקה עם הסיומת
         return f"{cleaned_base}{ext}"
     except Exception as e:
@@ -54,7 +72,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text(
         'הנה מה שאני עושה:\n'
         '1. שלח לי כל קובץ.\n'
-        '2. אני אמחק מילים באנגלית משם הקובץ.\n'
+        '2. אני אמחק מילים מסוימות באנגלית (מוגדרות מראש) משם הקובץ, גם אם הן חלק ממילה גדולה יותר.\n'
         '3. אני אוסיף לו את התמונה של אולדטאון בטלגרם.\n'
         '4. תקבל את הקובץ בחזרה.\n'
         'יש שאלות? תתאפק.'
@@ -91,7 +109,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if not thumb_io:
             error_message = 'לא הצלחתי להוסיף תמונה, אבל הנה הקובץ שלך.'
 
-        # הסרת מילים באנגלית משם הקובץ
+        # הסרת מילים מוגדרות משם הקובץ
         original_filename = document.file_name
         cleaned_filename = remove_english_words(original_filename)
         
