@@ -5,7 +5,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from PIL import Image
 import io
 import asyncio
-import re  # לטיפול בביטויים רגולריים
+import re
 
 # הגדרת לוגים
 logging.basicConfig(
@@ -43,11 +43,11 @@ def remove_english_words(filename: str) -> str:
         # הסרת המילים המוגדרות (גם אם הן חלק ממילה גדולה יותר)
         cleaned_base = base
         for word in words_to_remove:
-            pattern = re.escape(word)  # ביטוי רגולרי למילה ללא גבולות
+            pattern = re.escape(word)
             cleaned_base = re.sub(pattern, '', cleaned_base, flags=re.IGNORECASE)
         
-        # הסרת רווחים או _ מיותרים והחלפתם בסימן _ אם נשארו
-        cleaned_base = re.sub(r'[_|\s]+', '_', cleaned_base.strip('_'))
+        # הסרת רווחים או _ מיותרים והחלפתם ברווח בודד
+        cleaned_base = re.sub(r'[_|\s]+', ' ', cleaned_base.strip())
         
         # אם שם הבסיס ריק לאחר הניקוי, החלף בשם ברירת מחדל
         if not cleaned_base:
@@ -57,7 +57,7 @@ def remove_english_words(filename: str) -> str:
         return f"{cleaned_base}{ext}"
     except Exception as e:
         logger.error(f"שגיאה בניקוי שם קובץ: {e}")
-        return filename  # החזרת שם הקובץ המקורי במקרה של שגיאה
+        return filename
 
 # פקודת /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -72,9 +72,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text(
         'הנה מה שאני עושה:\n'
         '1. שלח לי כל קובץ.\n'
+        '2. אני אמחק מילים מסוימות באנגלית (מוגדרות מראש) משם הקובץ, גם אם הן חלק ממילה גדולה יותר.\n'
         '3. אני אוסיף לו את התמונה של אולדטאון בטלגרם.\n'
         '4. תקבל את הקובץ בחזרה.\n'
-         'תוהה איפה 2? תמשיך לתהות. יפה ששמת לב.'
+        'יש שאלות? תתאפק.'
     )
 
 # הכנת thumbnail
@@ -112,9 +113,10 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         original_filename = document.file_name
         cleaned_filename = remove_english_words(original_filename)
         
-        # הוספת "_OldTown" לפני הסיומת
+        # הוספת "_OldTown" לפני הסיומת, תוך המרת רווחים ל-_ בסוף השם
         base, ext = os.path.splitext(cleaned_filename)
-        new_filename = f"{base}_OldTown{ext}"
+        base = base.strip()
+        new_filename = f"{base.replace(' ', '_')}_OldTown{ext}"
 
         # שליחת הקובץ
         with open(input_file, 'rb') as f:
