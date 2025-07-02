@@ -92,7 +92,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await update.message.reply_text('קיבלתי את הקובץ, רגע אחד...')
 
     try:
-        # תיקון הקריאה ל־get_file
+        # הורדת הקובץ
         file_obj = await document.get_file()
         input_file = f'temp_{document.file_name}'
         await file_obj.download_to_drive(input_file)
@@ -107,9 +107,10 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         original_filename = document.file_name
         cleaned_filename = remove_english_words(original_filename)
         
+        # הוספת " OldTown" בשם, תוך החזרת רווחים במקום _
         base, ext = os.path.splitext(cleaned_filename)
-        base = base.strip()
-        new_filename = f"{base.replace(' ', '_')}_OldTown{ext}"
+        base = base.replace('_', ' ').strip()  # ✅ כאן התיקון
+        new_filename = f"{base} OldTown{ext}"
 
         # שליחת הקובץ
         with open(input_file, 'rb') as f:
@@ -121,6 +122,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 caption=error_message or 'ספריית אולדטאון - https://t.me/OldTownew'
             )
 
+        # ניקוי קבצים זמניים
         os.remove(input_file)
 
     except Exception as e:
